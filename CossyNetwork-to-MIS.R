@@ -9,6 +9,7 @@
 
 library(igraph)
 
+
 ## settings
 mis_init <- function(){
   allowedNetworks <<- c("kegg", "string", "pathwayapi")
@@ -42,9 +43,13 @@ extractGisFromKgml <- function (kgmlNodeFile, kgmlEdgeFile){
     return (-1) 
   
   ## kegg network may have multiple edges between same pair of nodes.
-  if(network=="kegg")
+  #print(kgmlNodeFile)
+  print("removing multiple edges")
+  print(Sys.time())
+  if(network!="string")
     edgeData <- removeMultipleEdges(edgeData, directed)
-  
+  print(Sys.time())
+  print("removed")
   
   kgmlGraph <- buildIGraph(nodeData, edgeData, directed)
   components <- clusters(graph=kgmlGraph)
@@ -75,7 +80,7 @@ extractGisFromKgml <- function (kgmlNodeFile, kgmlEdgeFile){
 }
 #debug(extractGisFromKgml)
 
-removeMultipleEdges <- function(edgeData, directed=FALSE){
+removeMultipleEdges_v1 <- function(edgeData, directed=FALSE){
   N <- nrow(edgeData)
   if(N<=1)
     return(edgeData)
@@ -102,7 +107,51 @@ removeMultipleEdges <- function(edgeData, directed=FALSE){
     }
   }
   
+  
+  
   return(edgeData[!toRemove,])
+}
+
+removeMultipleEdges <- function(edgeData, directed=FALSE){
+  #print("debug-1")
+  freq <- table(edgeData)
+  rows <- rownames(freq)
+  cols <- colnames(freq)
+  print("debug-2")
+  
+  if(!directed){
+    twoWayGenes <- intersect(rows, cols)
+    if(length(twoWayGenes)>1){
+      #print(length(twoWayGenes))
+      print("debug-2.1")
+      combs <- combn(twoWayGenes,2)
+      print("debug-2.2")
+      combs <- t(combs)
+      print("debug-2.3")
+      combinedFreq <- apply(combs, 1, function(pair){
+          return(freq[pair[1],pair[2]] + freq[pair[2],pair[1]])
+      })
+      print("debug-2.4")
+      freq[combs] <- combinedFreq
+      print("debug-2.5")
+      freq[combs[,c(2,1),drop=F]] <- 0
+      
+    }
+    
+  }
+  
+  print("debug-3")
+  occured <- which(freq>0, arr.ind=T)
+  relations <- apply(occured, 1, function(r){
+    return(c(rows[r[1]], cols[r[2]]))
+  })
+  
+  #print("debug-4")
+  edgeData <- edgeData[1:nrow(occured),,drop=F]
+  edgeData[,1] <- as.numeric(relations[1,])
+  edgeData[,2] <- as.numeric(relations[2,])
+  #print("debug-5")
+  return(edgeData)
 }
 
 extractGisFromConnectedGraph <- function(nodeData, edgeData){
@@ -533,7 +582,7 @@ generate_mis <- function(network, range=NA, outputFile=paste0("results/", networ
     cat("Please wait, it may take several minutes. Intel core-i5, 3.3GHz processor with 12GB ram takes about 15 minutes.\n")
   }
   else{
-    cat("Please wait, it may take several minutes.\n")
+    cat("Please wait, it may take several minutes. Intel core-i5, 3.3GHz processor with 12GB ram takes about 40 minutes.\n")
   }
   
   #### setttings ##########
