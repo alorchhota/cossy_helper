@@ -96,3 +96,13 @@ misList.addMis <- function(misList, misNumber, mis){
 getJson <- function(obj){
   toJSON(obj, auto_unbox = T)
 }
+
+misToNetwork <- function(g){
+  # create empty network
+  
+  
+  # add each node
+  
+  # add each edge
+  
+}
