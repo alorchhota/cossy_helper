@@ -33,7 +33,8 @@ mis_init <- function(){
   allLowSizeMis <<- data.frame(id=c(), pathway=c(), genes=c(), stringsAsFactors=F)
   allCorrectSizeMis <<- data.frame(id=c(), pathway=c(), genes=c(), stringsAsFactors=F)
   allBigSizeMis <<- data.frame(id=c(), pathway=c(), genes=c(), stringsAsFactors=F)
-  allGis <<- data.frame(id=c(), pathway=c(), genes=c(), stringsAsFactors=F)  
+  allGis <<- data.frame(id=c(), pathway=c(), genes=c(), stringsAsFactors=F) 
+  allGisGraphs <<- list() # giss are ordered (indexed) according to gisid in allGis
 }
 
 extractGisFromKgml <- function (kgmlNodeFile, kgmlEdgeFile){
@@ -583,6 +584,7 @@ saveGisLines <- function(miss){
     else{
       newGis <- data.frame(id=gmtCounter, pathway=gmtPathway, genes=line, stringsAsFactors=F)
       allGis <<- rbind(allGis, newGis)
+      allGisGraphs[[gmtCounter+1]] <<- mis$graph
       gmtCounter <<- gmtCounter+1
     }
     
@@ -592,19 +594,77 @@ saveGisLines <- function(miss){
   return(NA)
 }
 
+printInFiles <- function(){
+  
+  printInGmtFile()
+  printInJsonFile()
+  
+}
+
 printInGmtFile <- function(){
   
   apply(allGis, 1, function(gmtRow){
     line <- paste(gmtRow["id"], gmtRow["pathway"], gmtRow["genes"], sep="\t")
     write(file=gmtOut, x=line)  
+    return(NA)
   })
   
 }
 
 
+printInJsonFile <- function(){
+  
+  misNetworks <- lapply(allGisGraphs, function(misGraph){
+    return(misToJsonNetwork(misGraph))
+  })
+  
+  
+  if(length(misNetworks)>0){
+    misList <- createEmptyMisList()
+    for(i in 1:length(misNetworks)){
+      # misNumber starts from 0 (as gisid starts from 0 in allGis)
+      misList <- misList.addMis(misList, misNumber = i-1, mis = misNetworks[[i]])
+    }
+    
+    # write in file
+    cat(getJson(misList), file = jsonOut)
+  }
+  
+}
+
+
+misToJsonNetwork <- function(g){
+  ## create empty network
+  net <- createEmptyNetwork(dataAttrNames = c('label','expression', 'color'), 
+                                     dataAttrTypes = c('string', 'string', 'string'), 
+                                     dataAttrDefaultValues = c(NA,NA,'orange'),
+                                     edgeAttrNames = c('type','directed'),
+                                     edgeAttrTypes = c('string','boolean'),
+                                     edgeAttrDefaultValues = list(NA, FALSE)
+  );
+  
+  ## add each node
+  misNodes <- get.vertex.attribute(g, name = "name")
+  for(mnode in misNodes){
+    net <- network.addNode(net, mnode , label=mnode)
+  }
+  
+  ## add each edge
+  misEdges <- get.edgelist(graph = g, names = T)
+  if(nrow(misEdges) > 0){
+    for(i in 1:nrow(misEdges)){
+      net <- network.addEdge(net, as.character(i), source=misEdges[i,1], target=misEdges[i,2])
+    }
+  }
+  
+  return(net)
+}
+
+
+
 #debug(extractGisFromConnectedGraph)
 
-generate_mis <- function(network, range=NA, outputFile=paste0("results/", network, ".gmt")){
+generate_mis <- function(network, range=NA, gmtOutFile=paste0("results/", network, ".gmt"), jsonOutFile=paste0("results/", network, ".json")){
   
   mis_init()
   
@@ -638,9 +698,10 @@ generate_mis <- function(network, range=NA, outputFile=paste0("results/", networ
   #pathwaysFile <- switch(network, kegg="data/networks/kegg/kegg.txt", string="data/networks/string/string.txt")
   pathwaysFile <- paste0("data/networks/", network,"/", network,".txt")
   #gmtOutFile <- paste0("results/", network, ".gmt")
-  gmtOutFile <- outputFile
+  #gmtOutFile <- outputFile
   
   gmtOut <<- file(gmtOutFile, open="w+")
+  jsonOut <<- file(jsonOutFile, open="w+")
   gmtCounter <<- 0
   gmtPathway <<- "dummy"
   
@@ -656,7 +717,10 @@ generate_mis <- function(network, range=NA, outputFile=paste0("results/", networ
     
   })
   
-  printInGmtFile()
-  cat(paste("MISs are save in the file: ", getwd(),"/", gmtOutFile, "\n", sep=""))  
+  printInFiles()
+  cat("MISs are saved in 2 files:\n")  
+  cat(paste("File-1: ", getwd(),"/", gmtOutFile, "\n", sep=""))  
+  cat(paste("File-2: ", getwd(),"/", jsonOutFile, "\n", sep=""))  
   close(gmtOut)
+  close(jsonOut)
 }
