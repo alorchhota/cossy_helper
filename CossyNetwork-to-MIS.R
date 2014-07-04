@@ -9,6 +9,7 @@
 
 library(igraph)
 
+source('cytoscape-network-json.R')
 
 ## settings
 mis_init <- function(){
@@ -156,21 +157,30 @@ removeMultipleEdges <- function(edgeData, directed=FALSE){
 
 extractGisFromConnectedGraph <- function(nodeData, edgeData){
   if(nrow(nodeData)==0){
-    return("")
-  }
-  
-  if(nrow(nodeData)<minNodeInGis){
-    # taking gis from network having less than min nodes
-    return(genesInGraph(nodeData))
-  }
-  
-  if(nrow(nodeData)<=maxNodeInGis){
-    # the network is in range, take the full network
-    return(genesInGraph(nodeData))
+    #return("")
+    miss = list()
+    miss[[1]] = list(genes="", graph=graph.empty())
+    return(miss)
   }
   
   kgmlGraph <- buildIGraph(nodeData, edgeData, directed)
   noOfNodes <- vcount(kgmlGraph)
+  
+  if(nrow(nodeData)<minNodeInGis){
+    # taking gis from network having less than min nodes
+    #return(genesInGraph(nodeData))
+    miss = list()
+    miss[[1]] = list(genes=genesInGraph(nodeData), graph=kgmlGraph)
+    return(miss)
+  }
+  
+  if(nrow(nodeData)<=maxNodeInGis){
+    # the network is in range, take the full network
+    #return(genesInGraph(nodeData))
+    miss = list()
+    miss[[1]] = list(genes=genesInGraph(nodeData), graph=kgmlGraph)
+    return(miss)
+  }
   
   
   ########## build the community dendrogram (graphList) ##########
@@ -326,6 +336,23 @@ extractGisFromConnectedGraph <- function(nodeData, edgeData){
     return(freq)
   }
   
+  misGraphFromTakenGraphVariable <- function(tg){
+    nodeIndexes <- getIntegerNodeVector(tg)
+    nodeIndexes <- sort(x=nodeIndexes, decreasing=F)
+    tgGraph <- induced.subgraph(graph=kgmlGraph, vids=nodeIndexes)
+    tgNodeData <- nodeData[nodeIndexes, ,drop=F]
+    tgNodeData$id <- 1:nrow(tgNodeData)
+    tgGraph <- set.vertex.attribute(graph = tgGraph, name = "name", index = 1:nrow(tgNodeData), value = tgNodeData[, 2])
+    return(tgGraph)
+  }
+  
+  append.list <- function(l1, l2){
+    nl <- l1
+    for(i in 1:length(l2)){
+      nl[[length(nl)+1]] <- l2[[i]]
+    }
+    return(nl)
+  }
   
   # if nodes are discarded, assign them to some taken graph.
   if(length(discardedGraphs) > 0){
@@ -379,17 +406,30 @@ extractGisFromConnectedGraph <- function(nodeData, edgeData){
     ##count
     bigSizeMis <<- bigSizeMis + 1
     
-    gisGenes <- genesInAnnotatedGraph(takenGraphs[[1]])
-    return(gisGenes)
+    #gisGenes <- genesInAnnotatedGraph(takenGraphs[[1]])
+    #return(gisGenes)
+    
+    gline <- genesInAnnotatedGraph(takenGraphs[[1]])
+    misGraph <- misGraphFromTakenGraphVariable(takenGraphs[[1]])
+    miss = list()
+    miss[[1]] = list(genes=gline, graph=misGraph)
+    return(miss)
   }
   else{
     
-    gisGenes <- c()
+    #gisGenes <- c()
+    miss <- list()
     lapply(takenGraphs, function(tg){
       tg.count <- as.integer(get.graph.attribute(graph=tg, name="count"))
       if(tg.count<=maxNodeInGis){
         gline <- genesInAnnotatedGraph(tg)
-        gisGenes <<- c(gisGenes, gline)
+        #gisGenes <<- c(gisGenes, gline)
+        
+        ## get the mis graph
+        misGraph <- misGraphFromTakenGraphVariable(tg)
+        newMiss <- list()
+        newMiss[[1]] <- list(genes=gline, graph=misGraph)
+        miss <<- append.list(miss, newMiss)
         
         ## count
         correctSizeMis <<- correctSizeMis + 1
@@ -406,12 +446,15 @@ extractGisFromConnectedGraph <- function(nodeData, edgeData){
         tgNodeData$id <- 1:nrow(tgNodeData)
         tgEdgeData <- get.edgelist(graph=tgGraph, names=F)
         
-        tgGisGenes <- extractGisFromConnectedGraph(tgNodeData, tgEdgeData)
-        gisGenes <<- c(gisGenes, tgGisGenes)
+        #tgGisGenes <- extractGisFromConnectedGraph(tgNodeData, tgEdgeData)
+        #gisGenes <<- c(gisGenes, tgGisGenes)
+        tgMiss <- extractGisFromConnectedGraph(tgNodeData, tgEdgeData)
+        miss <<- append.list(miss, tgMiss)
       }
     })
     
-    return(gisGenes)
+    #return(gisGenes)
+    return(miss)
   }
 }
 
@@ -424,6 +467,7 @@ buildIGraph <- function(nodeData, edgeData, directed=F){
   edgeMatrix <- as.matrix(edgeData)
   edgeVector <- as.vector(t(edgeMatrix))
   gr <- graph(edges=edgeVector, n=noOfNodes, directed=directed)
+  gr <- set.vertex.attribute(graph = gr, name = "name", index = 1:nrow(nodeData), value = nodeData[, 2])
   return(gr)
 }
 
@@ -521,9 +565,10 @@ getAllNodes <- function(graphList){
 }
 
 
-saveGisLines <- function(gisGeneLines){
+saveGisLines <- function(miss){
   
-  lapply(gisGeneLines, function(line){
+  lapply(miss, function(mis){
+    line = mis$genes
     if(line=="")
       return(NA)
     
