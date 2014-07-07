@@ -8,6 +8,7 @@
 #####################################################
 
 library(igraph)
+library(stringr)
 
 source('cytoscape-network-json.R')
 
@@ -604,7 +605,7 @@ printInFiles <- function(){
 printInGmtFile <- function(){
   
   apply(allGis, 1, function(gmtRow){
-    line <- paste(gmtRow["id"], gmtRow["pathway"], gmtRow["genes"], sep="\t")
+    line <- paste(str_trim(gmtRow["id"]), gmtRow["pathway"], gmtRow["genes"], sep="\t")
     write(file=gmtOut, x=line)  
     return(NA)
   })
