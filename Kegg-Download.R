@@ -1,3 +1,9 @@
+##########################################################################
+####### This script downloads human kegg pathways                  #######
+####### The list of human pathways is first generated              #######          
+####### by searching hsa at http://www.genome.jp/kegg/pathway.html #######
+##########################################################################
+
 library(KEGGgraph)
 library(KEGG.db)
 
