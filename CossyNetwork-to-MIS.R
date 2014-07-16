@@ -40,7 +40,7 @@ mis_init <- function(){
 
 extractGisFromKgml <- function (kgmlNodeFile, kgmlEdgeFile){
   nodeData <- read.table(kgmlNodeFile, sep="\t", col.names=c("id","genes"), colClasses=c("numeric","character"))
-  edgeData <- read.table(kgmlEdgeFile, col.names=c("from","to"))
+  edgeData <- read.table(kgmlEdgeFile, col.names=c("from","to"), colClasses = c("numeric","numeric"))
   
   if(nrow(edgeData) <=0 )
     return (-1) 
@@ -115,7 +115,7 @@ removeMultipleEdges_v1 <- function(edgeData, directed=FALSE){
   return(edgeData[!toRemove,])
 }
 
-removeMultipleEdges <- function(edgeData, directed=FALSE){
+removeMultipleEdges_v2 <- function(edgeData, directed=FALSE){
   #print("debug-1")
   freq <- table(edgeData)
   rows <- rownames(freq)
@@ -154,6 +154,17 @@ removeMultipleEdges <- function(edgeData, directed=FALSE){
   edgeData[,1] <- as.numeric(relations[1,])
   edgeData[,2] <- as.numeric(relations[2,])
   #print("debug-5")
+  return(edgeData)
+}
+
+removeMultipleEdges <- function(edgeData, directed=FALSE){
+  if(!directed){
+    from <- apply(edgeData, 1, min)
+    to <- apply(edgeData, 1, max)
+    edgeData <- data.frame(from=from, to=to)
+  }
+  
+  edgeData <- unique(edgeData)
   return(edgeData)
 }
 
