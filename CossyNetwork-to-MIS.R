@@ -49,8 +49,7 @@ extractGisFromKgml <- function (kgmlNodeFile, kgmlEdgeFile){
   #print(kgmlNodeFile)
   print("removing multiple edges")
   print(Sys.time())
-  if(network!="string")
-    edgeData <- removeMultipleEdges(edgeData, directed)
+  edgeData <- removeMultipleEdges(edgeData, directed)
   print(Sys.time())
   print("removed")
   
