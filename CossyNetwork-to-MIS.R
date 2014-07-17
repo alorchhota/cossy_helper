@@ -163,6 +163,8 @@ removeMultipleEdges <- function(edgeData, directed=FALSE){
     edgeData <- data.frame(from=from, to=to)
   }
   
+  edgeData$from <- as.integer(edgeData$from)
+  edgeData$to <- as.integer(edgeData$to)
   edgeData <- unique(edgeData)
   return(edgeData)
 }
