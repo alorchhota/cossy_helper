@@ -646,9 +646,9 @@ printInJsonFile <- function(){
 
 misToJsonNetwork <- function(g){
   ## create empty network
-  net <- createEmptyNetwork(dataAttrNames = c('label','expression', 'color'), 
-                                     dataAttrTypes = c('string', 'string', 'string'), 
-                                     dataAttrDefaultValues = c(NA,NA,'orange'),
+  net <- createEmptyNetwork(dataAttrNames = c('label','expression', 'color', 'fold'), 
+                                     dataAttrTypes = c('string', 'string', 'string', 'number'), 
+                                     dataAttrDefaultValues = c(NA,NA,'orange',NA),
                                      edgeAttrNames = c('type','directed'),
                                      edgeAttrTypes = c('string','boolean'),
                                      edgeAttrDefaultValues = list(NA, FALSE)
@@ -656,6 +656,8 @@ misToJsonNetwork <- function(g){
   
   ## add each node
   misNodes <- get.vertex.attribute(g, name = "name")
+  # remove duplicated nodes
+  misNodes <- unique(misNodes)
   for(mnode in misNodes){
     net <- network.addNode(net, mnode , label=mnode)
   }
